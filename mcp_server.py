@@ -1,42 +1,56 @@
-from mcp import MCPServer, mcptool, Parameter
-from flask import Flask
+from mcp.server.fastMCP import FastMCP
+from mcp.types import Tool
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-class CalculatorServer(MCPServer):
-    def __init__(self):
-        super().__init__("calculator-server")
-        self.register_tools()
+mcp = FastMCP()
 
-    def register_tools(self):
-        @mcptool("add")
-        @Parameter("a", float, "First number")
-        @Parameter("b", float, "Second number")
-        def add(a: float, b: float) -> float:
-            return a + b
+@mcp.tool(name="add")
+async def add(a: float, b: float) -> float:
+    return a + b
 
-        @mcptool("subtract")
-        @Parameter("a", float, "First number")
-        @Parameter("b", float, "Second number")
-        def subtract(a: float, b: float) -> float:
-            return a - b
+@mcp.tool(name="subtract")
+async def subtract(a: float, b: float) -> float:
+    return a - b
 
-        @mcptool("multiply")
-        @Parameter("a", float, "First number")
-        @Parameter("b", float, "Second number")
-        def multiply(a: float, b: float) -> float:
-            return a * b
+@mcp.tool(name="multiply")
+async def multiply(a: float, b: float) -> float:
+    return a * b
 
-        @mcptool("divide")
-        @Parameter("a", float, "First number")
-        @Parameter("b", float, "Second number")
-        def divide(a: float, b: float) -> float:
-            if b == 0:
-                raise ValueError("Cannot divide by zero")
-            return a / b
+@mcp.tool(name="divide")
+async def divide(a: float, b: float) -> float:
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    return a / b
+
+@app.route('/calculate', methods=['POST'])
+async def calculate():
+    try:
+        data = request.json
+        if not data or 'operation' not in data or 'a' not in data or 'b' not in data:
+            return jsonify({'error': 'Invalid request format'}), 400
+
+        operation = data['operation']
+        a = float(data['a'])
+        b = float(data['b'])
+        
+        if operation == 'add':
+            result = await add(a, b)
+        elif operation == 'subtract':
+            result = await subtract(a, b)
+        elif operation == 'multiply':
+            result = await multiply(a, b)
+        elif operation == 'divide':
+            result = await divide(a, b)
+        else:
+            return jsonify({'error': 'Invalid operation'}), 400
+
+        return jsonify({'result': result})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 if __name__ == '__main__':
-    server = CalculatorServer()
-    server.run(host='0.0.0.0', port=5000) 
+    app.run(host='0.0.0.0', port=5000) 
