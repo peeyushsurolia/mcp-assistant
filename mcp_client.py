@@ -1,35 +1,46 @@
-from mcp import MCPClient, mcptool
+from mcp.client import ClientSession
+from mcp.types import Tool
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
+import httpx
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-class CalculatorClient(MCPClient):
+class CalculatorClient(ClientSession):
     def __init__(self, server_url):
-        super().__init__("calculator-client", server_url)
+        super().__init__(server_url)
         self.register_tools()
+        self.client = httpx.AsyncClient()
 
     def register_tools(self):
-        @mcptool("add")
+        @Tool("add")
         async def add(a: float, b: float) -> float:
-            return await self.call_tool("add", {"a": a, "b": b})
+            response = await self.client.post(f"{self.server_url}/calculate", 
+                json={"operation": "add", "a": a, "b": b})
+            return response.json()["result"]
 
-        @mcptool("subtract")
+        @Tool("subtract")
         async def subtract(a: float, b: float) -> float:
-            return await self.call_tool("subtract", {"a": a, "b": b})
+            response = await self.client.post(f"{self.server_url}/calculate", 
+                json={"operation": "subtract", "a": a, "b": b})
+            return response.json()["result"]
 
-        @mcptool("multiply")
+        @Tool("multiply")
         async def multiply(a: float, b: float) -> float:
-            return await self.call_tool("multiply", {"a": a, "b": b})
+            response = await self.client.post(f"{self.server_url}/calculate", 
+                json={"operation": "multiply", "a": a, "b": b})
+            return response.json()["result"]
 
-        @mcptool("divide")
+        @Tool("divide")
         async def divide(a: float, b: float) -> float:
-            return await self.call_tool("divide", {"a": a, "b": b})
+            response = await self.client.post(f"{self.server_url}/calculate", 
+                json={"operation": "divide", "a": a, "b": b})
+            return response.json()["result"]
 
 calculator_client = CalculatorClient("http://localhost:5000")
 
