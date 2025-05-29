@@ -1,5 +1,4 @@
-from mcp.client import ClientSession
-from mcp.types import Tool
+from mcp.client.fastMCP import FastMCP
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
@@ -11,38 +10,27 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-class CalculatorClient(ClientSession):
-    def __init__(self, server_url):
-        super().__init__(server_url)
-        self.register_tools()
-        self.client = httpx.AsyncClient()
+mcp = FastMCP("http://localhost:5000")
 
-    def register_tools(self):
-        @Tool("add")
-        async def add(a: float, b: float) -> float:
-            response = await self.client.post(f"{self.server_url}/calculate", 
-                json={"operation": "add", "a": a, "b": b})
-            return response.json()["result"]
+@mcp.tool(name="add")
+async def add(a: float, b: float) -> float:
+    response = await mcp.call_tool("add", {"a": a, "b": b})
+    return response
 
-        @Tool("subtract")
-        async def subtract(a: float, b: float) -> float:
-            response = await self.client.post(f"{self.server_url}/calculate", 
-                json={"operation": "subtract", "a": a, "b": b})
-            return response.json()["result"]
+@mcp.tool(name="subtract")
+async def subtract(a: float, b: float) -> float:
+    response = await mcp.call_tool("subtract", {"a": a, "b": b})
+    return response
 
-        @Tool("multiply")
-        async def multiply(a: float, b: float) -> float:
-            response = await self.client.post(f"{self.server_url}/calculate", 
-                json={"operation": "multiply", "a": a, "b": b})
-            return response.json()["result"]
+@mcp.tool(name="multiply")
+async def multiply(a: float, b: float) -> float:
+    response = await mcp.call_tool("multiply", {"a": a, "b": b})
+    return response
 
-        @Tool("divide")
-        async def divide(a: float, b: float) -> float:
-            response = await self.client.post(f"{self.server_url}/calculate", 
-                json={"operation": "divide", "a": a, "b": b})
-            return response.json()["result"]
-
-calculator_client = CalculatorClient("http://localhost:5000")
+@mcp.tool(name="divide")
+async def divide(a: float, b: float) -> float:
+    response = await mcp.call_tool("divide", {"a": a, "b": b})
+    return response
 
 @app.route('/calculate', methods=['POST'])
 async def calculate():
@@ -56,13 +44,13 @@ async def calculate():
         b = float(data['b'])
 
         if operation == 'add':
-            result = await calculator_client.add(a, b)
+            result = await add(a, b)
         elif operation == 'subtract':
-            result = await calculator_client.subtract(a, b)
+            result = await subtract(a, b)
         elif operation == 'multiply':
-            result = await calculator_client.multiply(a, b)
+            result = await multiply(a, b)
         elif operation == 'divide':
-            result = await calculator_client.divide(a, b)
+            result = await divide(a, b)
         else:
             return jsonify({'error': 'Invalid operation'}), 400
 
